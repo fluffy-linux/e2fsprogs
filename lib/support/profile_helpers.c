@@ -265,21 +265,65 @@ profile_release_string(char *str)
 	free(str);
 }
 
+static const char *
+profile_scan_bracket_end(const char *p)
+{
+	p++;
+	if (*p == '!' || *p == '^')
+		p++;
+	if (*p == ']')
+		p++;
+	while (*p != '\0' && *p != '/') {
+		if (*p == ']')
+			return p;
+		if (*p == '[' && (p[1] == ':' || p[1] == '.' || p[1] == '=')) {
+			char ctype = p[1];
+			const char *q = p + 2;
+			while (*q != '\0' && *q != '/' && (ctype == '.' || *q != ']')) {
+				if (*q == ctype && q[1] == ']') {
+					p = q + 2;
+					goto next_ch;
+				}
+				q++;
+			}
+		}
+		p++;
+	next_ch:;
+	}
+	return NULL;
+}
+
+static const char *
+profile_next_colon(const char *s)
+{
+	while (*s != '\0') {
+		if (*s == ':')
+			return s;
+		if (*s == '[') {
+			const char *end = profile_scan_bracket_end(s);
+			if (end != NULL) {
+				s = end + 1;
+				continue;
+			}
+		}
+		s++;
+	}
+	return NULL;
+}
+
 errcode_t
 profile_init_path(const char * filepath,
 		  profile_t *ret_profile)
 {
 	int n_entries, i;
-	unsigned int ent_len;
+	size_t ent_len;
 	const char *s, *t;
 	char **filenames;
 	errcode_t retval;
 
 	/* count the distinct filename components */
-	for(s = filepath, n_entries = 1; *s; s++) {
-		if (*s == ':')
-			n_entries++;
-	}
+	for (s = filepath, n_entries = 1; (t = profile_next_colon(s)) != NULL; s = t + 1)
+		n_entries++;
 
 	/* the array is NULL terminated */
 	filenames = (char **) malloc((n_entries+1) * sizeof(char*));
@@ -287,8 +331,13 @@ profile_init_path(const char * filepath,
 		return ENOMEM;
 
 	/* measure, copy, and skip each one */
-	for(s = filepath, i=0; (t = strchr(s, ':')) || (t=s+strlen(s)); s=t+1, i++) {
+	for(s = filepath, i=0; (t = profile_next_colon(s)) || (t=s+strlen(s)); s=t+1) {
 		ent_len = t-s;
+		if (ent_len == 0) {
+			if (*t == 0)
+				break;
+			continue;
+		}
 		filenames[i] = (char*) malloc(ent_len + 1);
 		if (filenames[i] == 0) {
 			/* if malloc fails, free the ones that worked */
@@ -298,10 +347,9 @@ profile_init_path(const char * filepath,
 		}
 		strncpy(filenames[i], s, ent_len);
 		filenames[i][ent_len] = 0;
-		if (*t == 0) {
-			i++;
+		i++;
+		if (*t == 0)
 			break;
-		}
 	}
 	/* cap the array */
 	filenames[i] = 0;
