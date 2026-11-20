@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/sw/bash/bin/bash
 
 #  Copyright (C) 2018 Oracle.  All Rights Reserved.
 #
@@ -23,7 +23,7 @@
 # check filesystems in VGs that have at least 256MB (or so) of
 # free space.
 
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+PATH=/sw/*/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 if (( $EUID != 0 )); then
     echo "e2scrub must be run as root"

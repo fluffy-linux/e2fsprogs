@@ -1,6 +1,8 @@
-#!/bin/bash
+#!/sw/bash/bin/bash
 
 # Email logs of failed e2scrub unit runs when the systemd service fails.
+
+PATH=/sw/*/bin${PATH:+:${PATH}}
 
 mntpoint="$1"
 test -z "${mntpoint}" && exit 0
