@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/sw/bash/bin/bash
 
 cat > sed.script << "EOF"
 /^#/d
@@ -16,7 +16,7 @@ if test -z "$CPP"; then
     CPP="$CC -E"
 fi
 
-/bin/echo -n "checking for __uNN types... "
+printf "checking for __uNN types... "
 # can't check [ -f /usr/include/asm/types.h ] directly, since
 # the include path might be different if cross-compiling
 if echo '#include <asm/types.h>' | $CPP - 2> parse-types.log | \
