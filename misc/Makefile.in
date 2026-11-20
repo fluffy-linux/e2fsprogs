@@ -273,6 +273,10 @@ fullcheck check:: base_device
 	./base_device < $(srcdir)/base_device.tst > base_device.out
 	cmp $(srcdir)/base_device.tst base_device.out
 
+fullcheck check:: mke2fs dumpe2fs
+	$(SHELL) $(srcdir)/tst_conf_glob.sh ./mke2fs ./dumpe2fs \
+		$(top_builddir)/e2fsck/e2fsck $(LIB)
+
 mklost+found: $(MKLPF_OBJS)
 	$(E) "	LD $@"
 	$(Q) $(CC) $(ALL_LDFLAGS) -o mklost+found $(MKLPF_OBJS) \
