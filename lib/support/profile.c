@@ -66,6 +66,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <glob.h>
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -300,14 +301,62 @@ errout:
 	return retval;
 }
 
+static errcode_t
+profile_add_filespec(profile_t profile, prf_file_t **last_p,
+		     const char *filespec)
+{
+	prf_file_t new_file, p;
+	errcode_t retval;
+	char **cpp, *cp, **array = NULL;
+
+	for (p = profile->first_file; p; p = p->next) {
+		if (strcmp(p->filespec, filespec) == 0)
+			return 0;
+	}
+
+	retval = get_dirlist(filespec, &array);
+	if (retval == 0) {
+		if (!array)
+			return 0;
+		for (cpp = array; (cp = *cpp); cpp++) {
+			retval = profile_open_file(cp, &new_file);
+			if (retval == ENOENT || retval == EACCES)
+				continue;
+			if (retval) {
+				free_list(array);
+				return retval;
+			}
+			**last_p = new_file;
+			*last_p = &new_file->next;
+		}
+		free_list(array);
+		return 0;
+	}
+	free_list(array);
+	if ((retval == ENOENT || retval == EACCES) &&
+	    strcmp(filespec, default_filename) != 0)
+		return 0;
+	if ((retval != ENOTDIR) &&
+	    strcmp(filespec, default_filename) != 0)
+		return retval;
+
+	retval = profile_open_file(filespec, &new_file);
+	if (retval == ENOENT || retval == EACCES)
+		return 0;
+	if (retval)
+		return retval;
+	**last_p = new_file;
+	*last_p = &new_file->next;
+	return 0;
+}
+
 errcode_t
 profile_init(const char * const *files, profile_t *ret_profile)
 {
 	const char * const *fs;
 	profile_t profile;
-	prf_file_t  new_file, *last;
+	prf_file_t *last;
 	errcode_t retval = 0;
-	char **cpp, *cp, **array = 0;
 
 	profile = malloc(sizeof(struct _profile_t));
 	if (!profile)
@@ -319,35 +368,35 @@ profile_init(const char * const *files, profile_t *ret_profile)
         /* if the filenames list is not specified return an empty profile */
         if ( files ) {
 	    for (fs = files; !PROFILE_LAST_FILESPEC(*fs); fs++) {
-		if (array)
-			free_list(array);
-		array = NULL;
-		retval = get_dirlist(*fs, &array);
-		if (retval == 0) {
-			if (!array)
-				continue;
-			for (cpp = array; (cp = *cpp); cpp++) {
-				retval = profile_open_file(cp, &new_file);
-				if (retval == EACCES)
-					continue;
-				if (retval)
-					goto errout;
-				*last = new_file;
-				last = &new_file->next;
-			}
-		} else if ((retval != ENOTDIR) &&
-			   strcmp(*fs, default_filename))
-			goto errout;
+		if (strcmp(*fs, default_filename) != 0 &&
+		    strpbrk(*fs, "*?[") != NULL) {
+			glob_t g;
+			int gr;
+			size_t gi;
 
-		retval = profile_open_file(*fs, &new_file);
-		/* if this file is missing, skip to the next */
-		if (retval == ENOENT || retval == EACCES) {
+			memset(&g, 0, sizeof(g));
+			gr = glob(*fs, GLOB_NOESCAPE, NULL, &g);
+			if (gr == 0) {
+				for (gi = 0; gi < g.gl_pathc; gi++) {
+					retval = profile_add_filespec(profile,
+								      &last,
+								      g.gl_pathv[gi]);
+					if (retval) {
+						globfree(&g);
+						goto errout;
+					}
+				}
+			} else if (gr == GLOB_NOSPACE) {
+				globfree(&g);
+				retval = ENOMEM;
+				goto errout;
+			}
+			globfree(&g);
 			continue;
 		}
+		retval = profile_add_filespec(profile, &last, *fs);
 		if (retval)
 			goto errout;
-		*last = new_file;
-		last = &new_file->next;
 	    }
 	    /*
 	     * If all the files were not found, return the appropriate error.
@@ -358,11 +407,9 @@ profile_init(const char * const *files, profile_t *ret_profile)
 	    }
 	}
 
-	free_list(array);
         *ret_profile = profile;
         return 0;
 errout:
-	free_list(array);
 	profile_release(profile);
 	return retval;
 }
