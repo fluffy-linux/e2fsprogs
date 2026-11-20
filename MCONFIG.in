@@ -206,7 +206,7 @@ $(top_builddir)/util/install-symlink: $(top_srcdir)/util/install-symlink.in \
 $(top_builddir)/util/symlinks:
 	cd $(top_builddir)/util ; $(MAKE) symlinks
 
-INSTALL_SYMLINK = /bin/sh $(top_builddir)/util/install-symlink \
+INSTALL_SYMLINK = $(SHELL) $(top_builddir)/util/install-symlink \
 			@SYMLINK_RELATIVE@ \
 			--symlinks=$(top_builddir)/util/symlinks
 DEP_INSTALL_SYMLINK = $(top_builddir)/util/install-symlink \
