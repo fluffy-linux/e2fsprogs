@@ -811,7 +811,14 @@ static void syntax_err_report(const char *filename, long err, int line_num)
 	exit(FSCK_ERROR);
 }
 
-static const char *config_fn[] = { ROOT_SYSCONFDIR "/e2fsck.conf", 0 };
+static const char *config_fn[] = {
+	"/etc/e2fsck.conf",
+#ifdef VENDOR_E2FSCK_CONF
+	VENDOR_E2FSCK_CONF,
+#endif
+	ROOT_SYSCONFDIR "/e2fsck.conf",
+	0
+};
 
 static errcode_t PRS(int argc, char *argv[], e2fsck_t *ret_ctx)
 {
@@ -1052,8 +1059,10 @@ static errcode_t PRS(int argc, char *argv[], e2fsck_t *ret_ctx)
 		fatal_error(ctx, 0);
 	}
 
-	if ((cp = getenv("E2FSCK_CONFIG")) != NULL)
+	if ((cp = getenv("E2FSCK_CONFIG")) != NULL) {
 		config_fn[0] = cp;
+		config_fn[1] = 0;
+	}
 	profile_set_syntax_err_cb(syntax_err_report);
 	profile_init(config_fn, &ctx->profile);
 

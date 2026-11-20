@@ -1308,7 +1308,14 @@ static void syntax_err_report(const char *filename, long err, int line_num)
 	exit(1);
 }
 
-static const char *config_fn[] = { ROOT_SYSCONFDIR "/mke2fs.conf", 0 };
+static const char *config_fn[] = {
+	"/etc/mke2fs.conf",
+#ifdef VENDOR_MKE2FS_CONF
+	VENDOR_MKE2FS_CONF,
+#endif
+	ROOT_SYSCONFDIR "/mke2fs.conf",
+	0
+};
 
 static void edit_feature(const char *str, __u32 *compat_array)
 {
@@ -1769,8 +1776,10 @@ static void PRS(int argc, char *argv[])
 #endif /* _SC_PAGESIZE */
 #endif /* HAVE_SYSCONF */
 
-	if ((tmp = getenv("MKE2FS_CONFIG")) != NULL)
+	if ((tmp = getenv("MKE2FS_CONFIG")) != NULL) {
 		config_fn[0] = tmp;
+		config_fn[1] = 0;
+	}
 	profile_set_syntax_err_cb(syntax_err_report);
 	retval = profile_init(config_fn, &profile);
 	if (retval == ENOENT) {
