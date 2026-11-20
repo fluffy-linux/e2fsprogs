@@ -12,9 +12,10 @@ if ! type sendmail > /dev/null 2>&1; then
 	exit 1
 fi
 
-if test -f /etc/e2scrub.conf ; then
-   . /etc/e2scrub.conf
-fi
+test -f "@root_sysconfdir@/e2scrub.conf" && . "@root_sysconfdir@/e2scrub.conf"
+for conffile in /sw/*/etc/e2scrub.conf /etc/e2scrub.conf; do
+	test "${conffile}" != "@root_sysconfdir@/e2scrub.conf" && test -f "${conffile}" && . "${conffile}"
+done
 
 hostname="$(hostname -f 2>/dev/null)"
 test -z "${hostname}" && hostname="${HOSTNAME}"
